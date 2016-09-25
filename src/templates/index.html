@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+	<title>A* Grid Search</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/gridstyle.css') }}">
+</head>
+<body>
+    <div class="grid"></div>
+
+    <script src="{{url_for('static', filename='js/jquery-3.1.1.min.js')}}"></script>
+    <script src="{{url_for('static', filename='js/grid.js')}}"></script>
+    <!--<script src="../static/jquery-3.1.1.min.js"></script>
+    <script src="../static/grid.js"></script>-->
+    <script>
+        (function() {
+
+            var grid = new Grid({
+                rows: 120,
+                cols: 160,
+                render: {
+                    container: '.grid'
+                }
+            });
+
+        }());
+    </script>
+</body>
+</html>

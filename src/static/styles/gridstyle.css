@@ -1,0 +1,17 @@
+.grid {
+    border: 10px solid #ddd;
+    display: inline-block; 
+    white-space: nowrap;
+    padding: 1px;
+}
+.row {
+    margin: 0;
+}
+.cell {
+    border: 1px solid #ddd;
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    margin: 1px;
+    vertical-align: top;
+}
