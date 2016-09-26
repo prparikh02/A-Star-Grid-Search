@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+	<title>A* Grid Search</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/gridstyle.css') }}">
+</head>
+<body>
+    <div class="grid"></div>
+
+    <script src="{{url_for('static', filename='js/jquery-3.1.1.min.js')}}"></script>
+    <script src="{{url_for('static', filename='js/grid.js')}}"></script>
+    <!--<script src="../static/jquery-3.1.1.min.js"></script>
+    <script src="../static/grid.js"></script>-->
+    <script>
+        (function() {
+
+            var grid = new Grid({
+                rows: {{ rows }},
+                cols: {{ cols }},
+                render: {
+                    container: '.grid'
+                }
+            });
+
+            var graph_data = JSON.parse({{ graph_data|tojson|safe }});
+            var nodes = graph_data.nodes;
+
+            try {
+                for (var i = 0; i < nodes.length; i++) {
+                    switch (nodes[i].cell_type) {
+                        case 'hard_to_traverse':
+                            grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background', 'DarkGray');
+                            break;
+                    }
+                }
+            } catch (err) {
+                console.log(err.message);
+            }
+
+            // try {
+            //     grid.getCellAt(x, y).$el.css('background', 'red');
+            // } catch(err) {
+            //     console.log(err.message);
+            // }
+
+        }());
+    </script>
+</body>
+</html>

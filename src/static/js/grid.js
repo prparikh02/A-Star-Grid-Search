@@ -21,8 +21,8 @@
     function Grid(params) {
         this.grid = [];
         this.cells = [];
-        this.rowsCount = params.rows;
-        this.colsCount = params.cols;
+        this.rowCount = params.rows;
+        this.colCount = params.cols;
         this.rows = [];
         this.cols = [];
         if (params.render) {
@@ -39,8 +39,8 @@
 
         getCellAt: function (x, y) {
 
-            if (x < 0 || x >= this.rowCount || y < 0 || y >= this.colCount) {
-                console.log('coordinates (%i,%i) invalid or out of bounds', x, y);
+            if (x < 0 || x >= this.colCount || y < 0 || y >= this.rowCount) {
+                console.log('coordinates (%i, %i) invalid or out of bounds', x, y);
                 return false;
             }
             return this.grid[y][x];
@@ -58,11 +58,11 @@
                 return;
             }
 
-            var i, j, $row, $cell, cell;
-            for (i = 0; i < this.rowsCount; i += 1) {
+            var $row, $cell, cell;
+            for (var i = 0; i < this.rowCount; i += 1) {
                 this.grid[i] = [];
                 $row = $('<div class="row"></div>').prependTo(this.$container);
-                for (j = 0; j < this.colsCount; j += 1) {
+                for (var j = 0; j < this.colCount; j += 1) {
                     $cell = $('<div class="cell"></div>').appendTo($row);
                     cell = this.createCell({ $element: $cell, x: j, y: i });
                     this.grid[i].push(cell);
