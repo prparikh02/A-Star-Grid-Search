@@ -30,11 +30,12 @@
                 for (var i = 0; i < nodes.length; i++) {
                     switch (nodes[i].cell_type) {
                         case 'hard_to_traverse':
-                            grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background', 'DarkGray');
+                            grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background-color', 'DarkGray');
                             break;
                     }
                     if (nodes[i].has_highway) {
-                        grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background', 'blue');
+                        // grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background', 'blue');
+                        grid.getCellAt(nodes[i].x, nodes[i].y).$el.append('<div class=highway></div>');
                     }
                 }
             } catch (err) {

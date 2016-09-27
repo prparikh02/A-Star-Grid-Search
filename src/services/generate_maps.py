@@ -71,13 +71,15 @@ def add_highways(G):
             G.node[to_node_name(x, y)]['has_highway'] = True
 
 def create_highway(G):
-    
-    highway = []
+
+    # highways is a dict of (x, y) pairs of highway points
+    #   implemented as a dict for O(1) lookup for duplicates    
+    highway = {}
     x, y, direction = get_highway_starting_point(G.graph['rows'], G.graph['cols'])
     if G.node[to_node_name(x, y)]['has_highway']:
-        return []
+        return {}
 
-    highway = [(x, y)]
+    highway[(x, y)] = True
     steps = 1
 
     while True:
@@ -85,19 +87,18 @@ def create_highway(G):
             x, y = get_next_highway_point(x, y, direction)
             if (G.node[to_node_name(x, y)]['has_highway'] or
                 (x, y) in highway):
-                return []
+                return {}
             
             if is_boundary_point(G, G.node[to_node_name(x, y)]):
                 if steps >= 100:
-                    highway.append((x, y))        
+                    highway[(x, y)] = True        
                     return highway
-                return []
+                return {}
 
-            highway.append((x, y))
+            highway[(x, y)] = True
             steps += 1
 
         direction = choose_next_direction(direction)
-
 
 def choose_next_direction(curr_direction):
     
