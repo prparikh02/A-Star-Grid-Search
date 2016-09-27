@@ -30,23 +30,31 @@
                 for (var i = 0; i < nodes.length; i++) {
                     switch (nodes[i].cell_type) {
                         case 'hard_to_traverse':
-                            grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background-color', 'DarkGray');
+                            grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background-color', 'darkgray');
+                            break;
+                        case 'blocked':
+                            grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background-color', 'black');
+                            continue;
                             break;
                     }
+
                     if (nodes[i].has_highway) {
-                        // grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background', 'blue');
                         grid.getCellAt(nodes[i].x, nodes[i].y).$el.append('<div class=highway></div>');
                     }
+
+                    if(nodes[i].hasOwnProperty('is_start')) {
+                        grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background-color', 'lime');
+                        continue;
+                    }
+
+                    if(nodes[i].hasOwnProperty('is_goal')) {
+                        grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background-color', 'red');
+                    }
+
                 }
             } catch (err) {
                 console.log(err.message);
             }
-
-            // try {
-            //     grid.getCellAt(x, y).$el.css('background', 'red');
-            // } catch(err) {
-            //     console.log(err.message);
-            // }
 
         }());
     </script>

@@ -1,7 +1,8 @@
 import json
-import matplotlib.pyplot as plt
+import math
 import networkx as nx
 import random
+import timeit
 from networkx.readwrite import json_graph
 
 
@@ -10,9 +11,18 @@ def generate_map(rows, cols):
     G = init_grid(rows, cols)
     add_hard_to_traverse_cells(G)
     add_highways(G)
+    add_blocked_cells(G)
+    mark_start_and_goal_cells(G)
 
     data = json_graph.node_link_data(G)
     return json.dumps(data, indent=4, separators=(',', ': '))
+
+"""
+A node is represented as a string named as:
+    'x-y', where x and y are its grid coordinates
+"""
+def to_node_name(x, y):
+    return '%d-%d' % (x, y)
 
 def init_grid(rows, cols):
         
@@ -33,13 +43,6 @@ def init_grid(rows, cols):
                 G.add_edge(n, to_node_name(neighbor[0], neighbor[1]), weight=1)
 
     return G
-
-"""
-A node is represented as a string named as:
-    'x-y', where x and y are its grid coordinates
-"""
-def to_node_name(x, y):
-    return '%d-%d' % (x, y)
 
 def add_hard_to_traverse_cells(G):
 
@@ -89,7 +92,7 @@ def create_highway(G):
                 (x, y) in highway):
                 return {}
             
-            if is_boundary_point(G, G.node[to_node_name(x, y)]):
+            if is_boundary_node(G, G.node[to_node_name(x, y)]):
                 if steps >= 100:
                     highway[(x, y)] = True        
                     return highway
@@ -122,7 +125,6 @@ def get_next_highway_point(x, y, direction):
     else:
         return x-1, y
         
-
 def get_highway_starting_point(row_count, col_count):
     
     # starting point for the highway should be at boundary,
@@ -137,7 +139,43 @@ def get_highway_starting_point(row_count, col_count):
     else:
         return 0, random.randint(1, row_count-1), 'e'
 
-def is_boundary_point(G, n):
+def is_boundary_node(G, n):
     
     return (n['x'] in [0, G.graph['cols']-1] or 
             n['y'] in [0, G.graph['rows']-1])
+
+def add_blocked_cells(G):
+    
+    N = len(G.nodes()) # total nodes in graph
+    B = int(N*0.20) # number of nodes to block
+
+    for n in random.sample(G.nodes(), N):
+        if B == 0:
+            break
+        if G.node[n]['has_highway']:
+            continue
+        G.node[n]['cell_type'] = 'blocked'
+        B -= 1
+
+def mark_start_and_goal_cells(G):
+
+    col_count = G.graph['cols']
+    row_count = G.graph['rows']
+    valid_x_range = range(0, 20) + range(col_count-20, col_count)
+    valid_y_range = range(0, 20) + range(row_count-20, row_count)
+    
+    while True:
+        start_x = random.choice(valid_x_range)
+        start_y = random.choice(valid_y_range)
+        if G.node[to_node_name(start_x, start_y)]['cell_type'] != 'blocked':
+            break
+    
+    while True:
+        goal_x = random.choice(valid_x_range)
+        goal_y = random.choice(valid_y_range)
+        if (G.node[to_node_name(goal_x, goal_y)]['cell_type'] != 'blocked' and
+            (math.sqrt((start_x-goal_x)**2 + (start_y-goal_y)**2)) > 100):
+            break
+
+    G.node[to_node_name(start_x, start_y)]['is_start'] = True
+    G.node[to_node_name(goal_x, goal_y)]['is_goal'] = True
