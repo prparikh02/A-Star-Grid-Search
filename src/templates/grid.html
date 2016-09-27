@@ -33,6 +33,9 @@
                             grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background', 'DarkGray');
                             break;
                     }
+                    if (nodes[i].has_highway) {
+                        grid.getCellAt(nodes[i].x, nodes[i].y).$el.css('background', 'blue');
+                    }
                 }
             } catch (err) {
                 console.log(err.message);
