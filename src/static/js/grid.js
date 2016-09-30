@@ -61,7 +61,7 @@
             var $row, $cell, cell;
             for (var i = 0; i < this.rowCount; i += 1) {
                 this.grid[i] = [];
-                $row = $('<div class="row"></div>').prependTo(this.$container);
+                $row = $('<div class="row"></div>').appendTo(this.$container);
                 for (var j = 0; j < this.colCount; j += 1) {
                     $cell = $('<div class="cell"></div>').appendTo($row);
                     cell = this.createCell({ $element: $cell, x: j, y: i });

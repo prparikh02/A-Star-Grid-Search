@@ -177,5 +177,8 @@ def mark_start_and_goal_cells(G):
             (math.sqrt((start_x-goal_x)**2 + (start_y-goal_y)**2)) > 100):
             break
 
+    G.graph['start'] = (start_x, start_y)
+    G.graph['goal'] = (goal_x, goal_y)
+
     G.node[to_node_name(start_x, start_y)]['is_start'] = True
     G.node[to_node_name(goal_x, goal_y)]['is_goal'] = True
