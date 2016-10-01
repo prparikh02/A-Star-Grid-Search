@@ -90,7 +90,7 @@
             $("#classicAstarBtn").click(function() {
                 $.ajax({
                     type: 'POST',
-                    url: '/grid/highlight-trace',
+                    url: '/grid/run-classic-astar',
                     success: function(data) {
                         trace = data.nodes;
                     }

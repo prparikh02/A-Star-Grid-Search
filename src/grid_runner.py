@@ -30,7 +30,7 @@ def grid():
                             cols=cols, 
                             graph_data=graph_data)
 
-@app.route('/grid/highlight-trace', methods=['GET', 'POST'])
+@app.route('/grid/run-classic-astar', methods=['GET', 'POST'])
 def highligh_path():
     trace, C = generate_maps.astar(app.G)
     return jsonify(nodes=trace)

@@ -21,9 +21,10 @@ def generate_map(rows, cols):
     map_config['goal'] = g
     map_config['rows'] = r
     map_config['cols'] = c
+    calculate_edge_weights(G)
 
     generate_map_file(G, map_config)
-
+    
     data = json_graph.node_link_data(G)
     return (G, json.dumps(data, indent=4, separators=(',', ': ')))
 
@@ -201,6 +202,33 @@ def mark_start_and_goal_cells(G):
     G.node[to_node_name(goal_x, goal_y)]['is_goal'] = True
 
     return ((start_x, start_y), (goal_x, goal_y), row_count, col_count)
+
+def calculate_edge_weights(G):
+    
+    prices = {
+        'unblocked': 1,
+        'hard_to_traverse': 2,
+        'blocked': sys.maxint
+    }
+
+    w = lambda u, v: (prices[G.node[u]['cell_type']] + prices[G.node[v]['cell_type']])/2.0
+
+    for u, v, attr in G.edges(data=True):       
+        if (G.node[u]['cell_type'] == 'blocked' or 
+            G.node[v]['cell_type'] == 'blocked'):
+            G[u][v]['weight'] = sys.maxint
+            continue
+        diag_move = (G.node[u]['x'] != G.node[v]['x'] and G.node[u]['y'] != G.node[v]['y'])
+        on_highway = (G.node[u]['has_highway'] and G.node[v]['has_highway']) 
+        if diag_move:
+            G[u][v]['weight'] = w(u, v)*math.sqrt(2)
+        elif on_highway:
+            G[u][v]['weight'] = w(u, v)/4.0
+        else:
+            G[u][v]['weight'] = w(u, v)
+
+        print u, v, G[u][v]['weight']
+
 
 def generate_map_file(G, map_config):
     
