@@ -1,6 +1,7 @@
 import json
 import math
 import networkx as nx
+import os
 import random
 import timeit
 from networkx.readwrite import json_graph
@@ -8,11 +9,18 @@ from networkx.readwrite import json_graph
 
 def generate_map(rows, cols):
 
+    map_config = {}
     G = init_grid(rows, cols)
-    add_hard_to_traverse_cells(G)
+    map_config['centroids'] = add_hard_to_traverse_cells(G)
     add_highways(G)
     add_blocked_cells(G)
-    mark_start_and_goal_cells(G)
+    s, g, r, c = mark_start_and_goal_cells(G)
+    map_config['start'] = s
+    map_config['goal'] = g
+    map_config['rows'] = r
+    map_config['cols'] = c
+
+    generate_map_file(G, map_config)
 
     data = json_graph.node_link_data(G)
     return json.dumps(data, indent=4, separators=(',', ': '))
@@ -30,7 +38,7 @@ def init_grid(rows, cols):
     
     for i in range(cols):
         for j in range(rows):
-            G.add_node(to_node_name(i, j), x=i, y=j, cell_type='unblocked', has_highway=False)
+            G.add_node(to_node_name(i, j), x=i, y=j, cell_type='unblocked', has_highway=False, tag=1)
 
     # potential edges
     edge_dirs = [[-1, -1], [0, -1], [1, -1], [-1, 0],
@@ -62,6 +70,9 @@ def add_hard_to_traverse_cells(G):
                     node = G.node[to_node_name(i, j)]
                     if node['cell_type'] != 'hard_to_traverse':
                         node['cell_type'] = 'hard_to_traverse'
+                        node['tag'] = 2
+
+    return coords
 
 def add_highways(G):
     
@@ -72,6 +83,10 @@ def add_highways(G):
 
         for x, y in highways:
             G.node[to_node_name(x, y)]['has_highway'] = True
+            if G.node[to_node_name(x, y)]['cell_type'] == 'unblocked':
+                 G.node[to_node_name(x, y)]['tag'] = 'a%d' % (i+1)
+            elif G.node[to_node_name(x, y)]['cell_type'] == 'hard_to_traverse':
+                G.node[to_node_name(x, y)]['tag'] = 'b%d' % (i+1)
 
 def create_highway(G):
 
@@ -155,6 +170,7 @@ def add_blocked_cells(G):
         if G.node[n]['has_highway']:
             continue
         G.node[n]['cell_type'] = 'blocked'
+        G.node[n]['tag'] = 0
         B -= 1
 
 def mark_start_and_goal_cells(G):
@@ -177,8 +193,33 @@ def mark_start_and_goal_cells(G):
             (math.sqrt((start_x-goal_x)**2 + (start_y-goal_y)**2)) > 100):
             break
 
-    G.graph['start'] = (start_x, start_y)
-    G.graph['goal'] = (goal_x, goal_y)
-
     G.node[to_node_name(start_x, start_y)]['is_start'] = True
     G.node[to_node_name(goal_x, goal_y)]['is_goal'] = True
+
+    return ((start_x, start_y), (goal_x, goal_y), row_count, col_count)
+
+def generate_map_file(G, map_config):
+    
+    i = 0
+    while os.path.exists('map%s.txt' % i):
+        i += 1
+
+    f = open('map%d.txt' % i, 'w')
+
+    f.write('%d,%d\n' % map_config['start'])
+    f.write('%d,%d\n' % map_config['goal'])
+    f.write('%d,%d\n' % (map_config['rows'], map_config['cols']))
+
+    for j in range(8):
+        f.write("%d,%d\n" % map_config['centroids'][j])
+
+    for y in range(G.graph['rows']):
+        for x in range(G.graph['cols']):
+            if x == G.graph['cols'] - 1:
+                f.write("%s\n" % G.node[to_node_name(x, y)]['tag'])
+            else:
+                f.write("%s," % G.node[to_node_name(x, y)]['tag'])
+
+    f.close()
+
+generate_map(120, 160)
