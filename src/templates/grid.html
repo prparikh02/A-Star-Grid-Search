@@ -8,14 +8,20 @@
 <body>
     <div class="grid"></div>
 
+    <div class="fixed">
+        <button id="classicAstarBtn" type="button">Run Classic A*</button>
+        <button id="showTraceBtn" type="button" onclick="showTrace()">Show Trace</button>
+        <button id="clearTraceBtn" type="button" onclick="clearTrace()">Clear Trace</button>
+    <div>
+
     <script src="{{url_for('static', filename='js/jquery-3.1.1.min.js')}}"></script>
     <script src="{{url_for('static', filename='js/grid.js')}}"></script>
-    <!--<script src="../static/jquery-3.1.1.min.js"></script>
-    <script src="../static/grid.js"></script>-->
     <script>
+        var grid;
+        var trace;
         (function() {
 
-            var grid = new Grid({
+            grid = new Grid({
                 rows: {{ rows }},
                 cols: {{ cols }},
                 render: {
@@ -57,6 +63,41 @@
             }
 
         }());
+
+        function showTrace() {
+            if (trace) {
+                var r, c;
+                for (var i = 0; i < trace.length; i++) {
+                    r = trace[i].y;
+                    c = trace[i].x;
+                    grid.getCellAt(c, r).$el.addClass('trace');
+                }
+            }
+        }
+
+        function clearTrace() {
+            if (trace) {
+                var r, c;
+                for (var i = 0; i < trace.length; i++) {
+                    r = trace[i].y;
+                    c = trace[i].x;
+                    grid.getCellAt(c, r).$el.removeClass('trace');
+                }
+            }
+        }
+
+        $(document).ready(function() {
+            $("#classicAstarBtn").click(function() {
+                $.ajax({
+                    type: 'POST',
+                    url: '/grid/highlight-trace',
+                    success: function(data) {
+                        trace = data.nodes;
+                    }
+                });
+            });
+        });
+        
     </script>
 </body>
 </html>

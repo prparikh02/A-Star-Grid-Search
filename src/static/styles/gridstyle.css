@@ -22,3 +22,12 @@
     vertical-align: top;
     background-color: #0000FF;
 }
+.trace {
+    outline-color: red;
+    outline-style: solid;
+}
+.fixed
+{
+    position: fixed;
+    top: 20px;
+}

@@ -1,8 +1,10 @@
+import heapq
 import json
 import math
 import networkx as nx
 import os
 import random
+import sys
 import timeit
 from networkx.readwrite import json_graph
 
@@ -23,7 +25,7 @@ def generate_map(rows, cols):
     generate_map_file(G, map_config)
 
     data = json_graph.node_link_data(G)
-    return json.dumps(data, indent=4, separators=(',', ': '))
+    return (G, json.dumps(data, indent=4, separators=(',', ': ')))
 
 """
 A node is represented as a string named as:
@@ -193,6 +195,8 @@ def mark_start_and_goal_cells(G):
             (math.sqrt((start_x-goal_x)**2 + (start_y-goal_y)**2)) > 100):
             break
 
+    G.graph['start'] = (start_x, start_y)
+    G.graph['goal'] = (goal_x, goal_y)
     G.node[to_node_name(start_x, start_y)]['is_start'] = True
     G.node[to_node_name(goal_x, goal_y)]['is_goal'] = True
 
@@ -222,4 +226,75 @@ def generate_map_file(G, map_config):
 
     f.close()
 
-generate_map(120, 160)
+# Classic A* implementation.
+# Inputs: Graph G, starting vertex vs, goal vertex vg
+# Output: List of coordinates corresponding to lowest-cost path
+def astar(G, vs=None, vg=None, heuristic=None):
+    
+    if not vs and not vg:
+        x, y = G.graph['start']
+        vs = to_node_name(x, y)
+        x, y = G.graph['goal']
+        vg = to_node_name(x, y)
+    
+    if vs not in G.nodes() or vg not in G.nodes():
+        raise ValueError('Starting node and/or goal node not in graph!')
+
+    add_heuristics(G, heuristic)
+
+    fringe = []
+    closed = []
+    G.node[vs]['g'] = 0
+    G.node[vs]['parent'] = vs
+    heapq.heappush(fringe, (G.node[vs]['g'] + G.node[vs]['h'], vs))
+
+    while fringe:
+        _, v = heapq.heappop(fringe)
+        if v == vg:
+            return path_trace(G, v)
+        closed.append(v)
+        for succ in G.neighbors(v):
+            if succ not in closed:
+                g = G.node[succ]['g'] if 'g' in G.node[succ] else None
+                if not g or (g + G.node[succ]['h'], succ) not in fringe:
+                    G.node[succ]['g'] = sys.maxint
+                    G.node[succ]['parent'] = None
+                update_vertex(G, v, succ, fringe)
+    return 'no path found'
+
+def update_vertex(G, v, succ, fringe):
+    
+    g = G.node[succ]['g']
+    if G.node[v]['g'] + G.get_edge_data(v, succ)['weight'] < g:
+        G.node[succ]['g'] = G.node[v]['g'] + G.get_edge_data(v, succ)['weight']
+        G.node[succ]['parent'] = v
+        succ_tup = (g + G.node[succ]['h'], succ)
+        if succ_tup in fringe:
+            fringe.remove(succ_tup)
+        heapq.heappush(fringe, (G.node[succ]['g'] + G.node[succ]['h'], succ))
+
+def path_trace(G, v):
+    
+    trace = []
+    C = 0
+    while True:
+        trace.append({'x': G.node[v]['x'], 'y': G.node[v]['y']})
+        p = G.node[v]['parent']
+        C += G.get_edge_data(v, p)['weight']
+        v = p
+        if G.node[v]['parent'] == v:
+            trace.append({'x': G.node[v]['x'], 'y': G.node[v]['y']})
+            break
+    trace.reverse()
+    return (trace, C)
+
+def add_heuristics(G, heuristic=None):
+
+    if not heuristic:
+        goal_x, goal_y = G.graph['goal']
+        for n in G.nodes():
+            x = G.node[n]['x']
+            y = G.node[n]['y']
+            G.node[n]['h'] = math.sqrt((x-goal_x)**2 + (y-goal_y)**2)
+            # G.node[n]['g'] = None
+            G.node[n]['parent'] = None
