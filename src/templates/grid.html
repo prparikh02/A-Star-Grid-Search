@@ -89,7 +89,7 @@
         $(document).ready(function() {
             $("#classicAstarBtn").click(function() {
                 $.ajax({
-                    type: 'POST',
+                    type: 'GET',
                     url: '/grid/run-classic-astar',
                     success: function(data) {
                         trace = data.nodes;

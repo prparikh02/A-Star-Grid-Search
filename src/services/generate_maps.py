@@ -227,8 +227,6 @@ def calculate_edge_weights(G):
         else:
             G[u][v]['weight'] = w(u, v)
 
-        print u, v, G[u][v]['weight']
-
 
 def generate_map_file(G, map_config):
     
@@ -255,9 +253,10 @@ def generate_map_file(G, map_config):
     f.close()
 
 # Classic A* implementation.
-# Inputs: Graph G, starting vertex vs, goal vertex vg
+# Inputs: Graph G
+# Optional Inputs: starting vertex vs, goal vertex vg, optimization flag, lambda heuristic(G, v) 
 # Output: List of coordinates corresponding to lowest-cost path
-def astar(G, vs=None, vg=None, heuristic=None):
+def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
     
     if not vs and not vg:
         x, y = G.graph['start']
@@ -268,38 +267,54 @@ def astar(G, vs=None, vg=None, heuristic=None):
     if vs not in G.nodes() or vg not in G.nodes():
         raise ValueError('Starting node and/or goal node not in graph!')
 
-    add_heuristics(G, heuristic)
+    euc_dist = lambda G, u: math.sqrt(((G.node[u]['x']-G.graph['goal'][0])**2 + 
+                                        (G.node[u]['y']-G.graph['start'][1])**2))
 
+    if not heuristic:
+        heuristic = euc_dist
+        if not optimized:
+            add_heuristics(G, w*heuristic)
+
+    expansions = 0
     fringe = []
-    closed = []
+    closed = set() if optimized else [] # for academic purposes
     G.node[vs]['g'] = 0
     G.node[vs]['parent'] = vs
+    if optimized:
+        G.node[vs]['h'] = w*heuristic(G, vs)
     heapq.heappush(fringe, (G.node[vs]['g'] + G.node[vs]['h'], vs))
 
     while fringe:
         _, v = heapq.heappop(fringe)
+        expansions += 1
         if v == vg:
-            return path_trace(G, v)
-        closed.append(v)
-        for succ in G.neighbors(v):
-            if succ not in closed:
-                g = G.node[succ]['g'] if 'g' in G.node[succ] else None
-                if not g or (g + G.node[succ]['h'], succ) not in fringe:
-                    G.node[succ]['g'] = sys.maxint
-                    G.node[succ]['parent'] = None
-                update_vertex(G, v, succ, fringe)
-    return 'no path found'
+            trace, C = path_trace(G, v)
+            return (trace, C, expansions, len(trace))
+        closed.add(v) if optimized else closed.append(v)
+        for s in G.neighbors(v):
+            if s not in closed:
+                G.node[s]['h'] = heuristic(G, s)
+                # TODO: Need a better fringe data structure not dependent on g being None
+                g = G.node[s]['g'] if 'g' in G.node[s] else None
+                if not g or (g + G.node[s]['h'], s) not in fringe:
+                    G.node[s]['g'] = sys.maxint
+                    G.node[s]['parent'] = None
+                update_vertex(G, v, s, fringe)
+    return ([], -1, expansions, 0) # no path found, C = -1
 
-def update_vertex(G, v, succ, fringe):
+def update_vertex(G, v, s, fringe):
     
-    g = G.node[succ]['g']
-    if G.node[v]['g'] + G.get_edge_data(v, succ)['weight'] < g:
-        G.node[succ]['g'] = G.node[v]['g'] + G.get_edge_data(v, succ)['weight']
-        G.node[succ]['parent'] = v
-        succ_tup = (g + G.node[succ]['h'], succ)
-        if succ_tup in fringe:
-            fringe.remove(succ_tup)
-        heapq.heappush(fringe, (G.node[succ]['g'] + G.node[succ]['h'], succ))
+    old_g = G.node[s]['g']
+    g = G.node[v]['g'] + G.get_edge_data(v, s)['weight']
+    if g < old_g:
+        G.node[s]['g'] = g
+        G.node[s]['parent'] = v
+        h = G.node[s]['h']
+        # TODO: Need better fringe structure. Removal is currently O(n)
+        s_tup = (old_g + h, s)
+        if s_tup in fringe:
+            fringe.remove(s_tup)
+        heapq.heappush(fringe, (g + h, s))
 
 def path_trace(G, v):
     
@@ -316,13 +331,15 @@ def path_trace(G, v):
     trace.reverse()
     return (trace, C)
 
-def add_heuristics(G, heuristic=None):
+# Heuristic must be a lambda
+def add_heuristics(G, heuristic):
 
-    if not heuristic:
-        goal_x, goal_y = G.graph['goal']
-        for n in G.nodes():
+    # default to Euclidean distance heuristic
+    goal_x, goal_y = G.graph['goal']
+    for n in G.nodes():
+        if heuristic:
+            G.node[n]['h'] = heuristic(G, n)
+        else:
             x = G.node[n]['x']
             y = G.node[n]['y']
             G.node[n]['h'] = math.sqrt((x-goal_x)**2 + (y-goal_y)**2)
-            # G.node[n]['g'] = None
-            G.node[n]['parent'] = None
