@@ -10,8 +10,20 @@
 
     <div class="fixed">
         <button id="classicAstarBtn" type="button">Run Classic A*</button>
-        <button id="showTraceBtn" type="button" onclick="showTrace()">Show Trace</button>
-        <button id="clearTraceBtn" type="button" onclick="clearTrace()">Clear Trace</button>
+        <div>
+            <button id="weightedAstarBtn" type="button">Run Weighted A*</button>
+            <input id="weightTxt" type="text" value="1.0" style="max-width: 100px;">
+        </div>
+        <div>
+            <button id="showTraceBtn" type="button" onclick="showTrace()">Show Trace</button>
+            <button id="clearTraceBtn" type="button" onclick="clearTrace()">Clear Trace</button>
+            <div>
+                <p>Cost: <span id="costTxt"></span></p>
+                <p>Expansions: <span id="expansionsTxt"></span></p>
+                <p>Moves: <span id="movesTxt"></span></p>
+                <p>Time (s): <span id="timeTxt"></span></p>
+            </div>
+        </div>
     <div>
 
     <script src="{{url_for('static', filename='js/jquery-3.1.1.min.js')}}"></script>
@@ -19,6 +31,7 @@
     <script>
         var grid;
         var trace;
+        var traceData = {};
         (function() {
 
             grid = new Grid({
@@ -73,7 +86,14 @@
                     grid.getCellAt(c, r).$el.addClass('trace');
                 }
             }
-        }
+            if (traceData) {
+                $('#costTxt').empty().append(traceData.cost);
+                $('#expansionsTxt').empty().append(traceData.expansions);
+                $('#movesTxt').empty().append(traceData.moves);
+                $('#timeTxt').empty().append(traceData.timeElapsed);
+            }
+
+        };
 
         function clearTrace() {
             if (trace) {
@@ -84,15 +104,47 @@
                     grid.getCellAt(c, r).$el.removeClass('trace');
                 }
             }
+            $('#costTxt').empty();
+            $('#expansionsTxt').empty();
+            $('#movesTxt').empty();
+            $('#timeTxt').empty();
+        };
+
+        function updateTraceData(data) {
+            trace = data.nodes;
+            traceData.cost = data.cost;
+            traceData.expansions = data.expansions;
+            traceData.moves = data.moves;
+            traceData.timeElapsed = data.time;
         }
 
         $(document).ready(function() {
-            $("#classicAstarBtn").click(function() {
+            $('#weightedAstarBtn').click(function() {
+                clearTrace();
+                var w = parseFloat($('#weightTxt').val());
+                if (isNaN(w)) {
+                    alert('Please enter a floating point decimal');
+                    return;
+                }
                 $.ajax({
                     type: 'GET',
-                    url: '/grid/run-classic-astar',
+                    url: '/grid/astar',
+                    data: {'w': w},
                     success: function(data) {
-                        trace = data.nodes;
+                        updateTraceData(data);
+                    }
+                });
+            });
+        });
+
+        $(document).ready(function() {
+            $("#classicAstarBtn").click(function() {
+                clearTrace();
+                $.ajax({
+                    type: 'GET',
+                    url: '/grid/astar',
+                    success: function(data) {
+                        updateTraceData(data);
                     }
                 });
             });

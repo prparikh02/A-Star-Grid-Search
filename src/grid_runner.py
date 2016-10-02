@@ -52,13 +52,17 @@ def grid(map_num=None, sg_pair_num=None):
                             cols=cols, 
                             graph_data=graph_data)
 
-@app.route('/grid/run-classic-astar')
-def run_classic_astar():
+@app.route('/grid/astar')
+def run_classic_astar(w=1.0):
+    if request.args.get('w'):
+        w = float(request.args.get('w'))
+    
     start = timeit.default_timer()
-    trace, C, expansions, moves = generate_maps.astar(app.G, w=2.0)
+    trace, C, expansions, moves = generate_maps.astar(app.G, w=w)
     elapsed = timeit.default_timer() - start
+
     print C, expansions, moves, elapsed
-    return jsonify(nodes=trace, cost=C, expansions=expansions, moves=moves, time_elapsed=elapsed)
+    return jsonify(nodes=trace, cost=C, expansions=expansions, moves=moves, time=elapsed)
 
 if __name__ == "__main__":
     app.run(debug=True)

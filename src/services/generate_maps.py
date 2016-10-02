@@ -364,8 +364,7 @@ def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
     heapq.heappush(fringe, (G.node[vs]['g'] + G.node[vs]['h'], vs))
 
     while fringe:
-        x, v = heapq.heappop(fringe)
-        print x
+        _, v = heapq.heappop(fringe)
         expansions += 1
         if v == vg:
             trace, C = path_trace(G, v)
