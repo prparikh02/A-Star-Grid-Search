@@ -12,17 +12,32 @@
         <button id="classicAstarBtn" type="button">Run Classic A*</button>
         <div>
             <button id="weightedAstarBtn" type="button">Run Weighted A*</button>
-            <input id="weightTxt" type="text" value="1.0" style="max-width: 100px;">
+            <input id="weightInput" type="text" value="1.0" style="max-width: 100px;">
         </div>
         <div>
             <button id="showTraceBtn" type="button" onclick="showTrace()">Show Trace</button>
             <button id="clearTraceBtn" type="button" onclick="clearTrace()">Clear Trace</button>
             <div>
-                <p>Cost: <span id="costTxt"></span></p>
-                <p>Expansions: <span id="expansionsTxt"></span></p>
-                <p>Moves: <span id="movesTxt"></span></p>
-                <p>Time (s): <span id="timeTxt"></span></p>
+                <p>
+                    Cost: <span id="costTxt"></span><br>
+                    Expansions: <span id="expansionsTxt"></span><br>
+                    Moves: <span id="movesTxt"></span><br>
+                    Time (s): <span id="timeTxt"></span>
+                </p>
             </div>
+        </div>
+        <div>
+            <span>Get search values f, g, h for node (R,C): <br></span>
+            <input id="rowInput" type="text" value="0" style="max-width: 100px;">
+            <input id="colInput" type="text" value="0" style="max-width: 100px;">
+            <br>
+            <button id="searchNodeDataBtn" type="button">Get Search Data</button>
+            <br>
+            <p>
+                f: <span id="fTxt"></span><br>
+                g: <span id="gTxt"></span><br>
+                h: <span id="hTxt"></span>
+            </p>
         </div>
     <div>
 
@@ -31,7 +46,7 @@
     <script>
         var grid;
         var trace;
-        var traceData = {};
+        var searchData = {};
         (function() {
 
             grid = new Grid({
@@ -86,11 +101,11 @@
                     grid.getCellAt(c, r).$el.addClass('trace');
                 }
             }
-            if (traceData) {
-                $('#costTxt').empty().append(traceData.cost);
-                $('#expansionsTxt').empty().append(traceData.expansions);
-                $('#movesTxt').empty().append(traceData.moves);
-                $('#timeTxt').empty().append(traceData.timeElapsed);
+            if (searchData) {
+                $('#costTxt').empty().append(searchData.cost);
+                $('#expansionsTxt').empty().append(searchData.expansions);
+                $('#movesTxt').empty().append(searchData.moves);
+                $('#timeTxt').empty().append(searchData.timeElapsed);
             }
 
         };
@@ -110,18 +125,18 @@
             $('#timeTxt').empty();
         };
 
-        function updateTraceData(data) {
-            trace = data.nodes;
-            traceData.cost = data.cost;
-            traceData.expansions = data.expansions;
-            traceData.moves = data.moves;
-            traceData.timeElapsed = data.time;
+        function updateSearchData(data) {
+            trace = data.trace;
+            searchData.cost = data.cost;
+            searchData.expansions = data.expansions;
+            searchData.moves = data.moves;
+            searchData.timeElapsed = data.time;
         }
 
         $(document).ready(function() {
             $('#weightedAstarBtn').click(function() {
                 clearTrace();
-                var w = parseFloat($('#weightTxt').val());
+                var w = parseFloat($('#weightInput').val());
                 if (isNaN(w)) {
                     alert('Please enter a floating point decimal');
                     return;
@@ -131,7 +146,7 @@
                     url: '/grid/astar',
                     data: {'w': w},
                     success: function(data) {
-                        updateTraceData(data);
+                        updateSearchData(data);
                     }
                 });
             });
@@ -144,12 +159,42 @@
                     type: 'GET',
                     url: '/grid/astar',
                     success: function(data) {
-                        updateTraceData(data);
+                        updateSearchData(data);
                     }
                 });
             });
         });
         
+        $(document).ready(function() {
+            $("#searchNodeDataBtn").click(function() {
+                var r = parseInt($('#rowInput').val());
+                var c = parseInt($('#colInput').val());
+                if (isNaN(r) || isNaN(c)) {
+                    alert('Please enter valid integer coordinates (0 indexed)');
+                    return;
+                }
+                if (r < 0 || r > 119) {
+                    alert('Row out of bounds');
+                    return;
+                }
+                if (c < 0 || c > 159) {
+                    alert('Column out of bounds');
+                    return;
+                }
+                $.ajax({
+                    type: 'GET',
+                    url: '/grid/astar/node-stats',
+                    data: {'r': r, 'c': c},
+                    success: function(data) {
+                        $('#fTxt').empty().append(data.f);
+                        $('#gTxt').empty().append(data.g);
+                        $('#hTxt').empty().append(data.h);
+                        console.log(data);
+                    }
+                });
+            });
+        });
+
     </script>
 </body>
 </html>

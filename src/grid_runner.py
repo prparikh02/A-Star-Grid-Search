@@ -14,6 +14,7 @@ class GridServer(Flask):
     def __init__(self, *args, **kwargs):
         super(GridServer, self).__init__(*args, **kwargs)
         self.G = []
+        self.node_search_data = []
 
 app = GridServer(__name__)
 
@@ -53,16 +54,34 @@ def grid(map_num=None, sg_pair_num=None):
                             graph_data=graph_data)
 
 @app.route('/grid/astar')
-def run_classic_astar(w=1.0):
+def astar():
+    w = 1.0
     if request.args.get('w'):
         w = float(request.args.get('w'))
     
     start = timeit.default_timer()
-    trace, C, expansions, moves = generate_maps.astar(app.G, w=w)
+    trace, app.node_search_data, C, expansions, moves = generate_maps.astar(app.G, w=w)
     elapsed = timeit.default_timer() - start
 
-    print C, expansions, moves, elapsed
-    return jsonify(nodes=trace, cost=C, expansions=expansions, moves=moves, time=elapsed)
+    return jsonify(trace=trace, cost=C, expansions=expansions, moves=moves, time=elapsed)
+
+@app.route('/grid/astar/node-stats')
+def node_stats():
+    if not app.node_search_data:
+        return 'run a search first!'
+
+    x = int(request.args.get('c'))
+    y = int(request.args.get('r'))
+    n = generate_maps.to_node_name(x, y)
+
+    f = app.node_search_data[n]['f'] if 'f' in app.node_search_data[n] else None
+    g = app.node_search_data[n]['g'] if 'g' in app.node_search_data[n] else None
+    h = app.node_search_data[n]['h'] if 'h' in app.node_search_data[n] else None
+    return jsonify({
+        'f': f,
+        'g': g,
+        'h': h
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)

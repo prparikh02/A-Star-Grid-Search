@@ -331,10 +331,12 @@ def import_map(file, start=None, goal=None):
     create_edges(G)
     return (G, map_config)
 
-# Classic A* implementation.
+# Versatile A* implementation
 # Inputs: Graph G
 # Optional Inputs: starting vertex vs, goal vertex vg, weight w, optimization flag, lambda heuristic(G, v) 
 # Output: List of coordinates corresponding to lowest-cost path
+# Optimizations: Closed set is implemented as a set with O(1) lookup and insertion
+# TODO: Optimize heap
 def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
     
     if not vs and not vg:
@@ -347,7 +349,7 @@ def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
         raise ValueError('Starting node and/or goal node not in graph!')
 
     euc_dist = lambda G, u: math.sqrt(((G.node[u]['x']-G.graph['goal'][0])**2 + 
-                                        (G.node[u]['y']-G.graph['start'][1])**2))
+                                        (G.node[u]['y']-G.graph['goal'][1])**2))
 
     if not heuristic:
         heuristic = euc_dist
@@ -361,6 +363,7 @@ def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
     G.node[vs]['parent'] = vs
     if optimized:
         G.node[vs]['h'] = w*heuristic(G, vs)
+    G.node[vs]['f'] = G.node[vs]['g'] + G.node[vs]['h']
     heapq.heappush(fringe, (G.node[vs]['g'] + G.node[vs]['h'], vs))
 
     while fringe:
@@ -368,7 +371,7 @@ def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
         expansions += 1
         if v == vg:
             trace, C = path_trace(G, v)
-            return (trace, C, expansions, len(trace))
+            return (trace, G.node, C, expansions, len(trace))
         closed.add(v) if optimized else closed.append(v)
         for s in G.neighbors(v):
             if s not in closed:
@@ -379,7 +382,7 @@ def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
                     G.node[s]['g'] = sys.maxint
                     G.node[s]['parent'] = None
                 update_vertex(G, v, s, fringe)
-    return ([], -1, expansions, 0) # no path found, C = -1
+    return ([], G.node, -1, expansions, 0) # no path found, C = -1
 
 def update_vertex(G, v, s, fringe):
         
@@ -389,23 +392,36 @@ def update_vertex(G, v, s, fringe):
         G.node[s]['g'] = g
         G.node[s]['parent'] = v
         h = G.node[s]['h']
+        f = G.node[s]['f'] = g + h
         # TODO: Need better fringe structure. Removal is currently O(n)
         s_tup = (old_g + h, s)
         if s_tup in fringe:
             fringe.remove(s_tup)
-        heapq.heappush(fringe, (g + h, s))
+        heapq.heappush(fringe, (f, s))
 
 def path_trace(G, v):
     
     trace = []
     C = 0
     while True:
-        trace.append({'x': G.node[v]['x'], 'y': G.node[v]['y']})
+        trace.append({
+            'x': G.node[v]['x'],
+            'y': G.node[v]['y'],
+            'f': G.node[v]['f'],
+            'g': G.node[v]['g'],
+            'h': G.node[v]['h']
+        })
         p = G.node[v]['parent']
         C += G.get_edge_data(v, p)['weight']
         v = p
         if G.node[v]['parent'] == v:
-            trace.append({'x': G.node[v]['x'], 'y': G.node[v]['y']})
+            trace.append({
+                'x': G.node[v]['x'],
+                'y': G.node[v]['y'],
+                'f': G.node[v]['f'],
+                'g': G.node[v]['g'],
+                'h': G.node[v]['h']
+            })
             break
     trace.reverse()
     return (trace, C)
