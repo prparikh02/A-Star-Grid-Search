@@ -6,10 +6,43 @@
 </head>
 
 <body>
+    <script src="{{url_for('static', filename='js/jquery-3.1.1.min.js')}}"></script>
     <h1>A* Grid Search</h1>
     <p>Intro to AI (CS 520) - Assignment 1</p>
     <p>Parth Parikh, William Grant</p>
     <h3>Maps</h3>
-    <a href="{{ url_for('grid') }}">Map 1</a>
+
+    <div style="padding-bottom:10px">
+        <select id="mapSelect"></select>
+        <select id="startgoalsSelect"></select>
+        <button id="load" type="button"  onclick="loadMap()">Load Map</button>
+    </div>
+
+    <div>
+        <a href="{{ url_for('grid') }}">Random Map</a>
+    </div>
+
+    <script>
+        function loadMap() {
+            var map = $('#mapSelect').val();
+            var sgpair = $('#startgoalsSelect').val();
+            window.location.href = "/grid/" + map + "/" + sgpair;
+        }
+
+        $(document).ready(function() {
+            var options;
+            for (var i = 1; i <= 5; i++){
+                options += '<option value=' + i + '> Map ' + i + '</option>';
+            }
+            $('#mapSelect').append(options);
+            
+            options = '';
+            for (var i = 1; i <= 10; i++){
+                options += '<option value=' + i + '> Start/Goal Pair ' + i + '</option>';
+            }
+            $('#startgoalsSelect').append(options);
+        });
+    </script>
+
 </body>
 </html>

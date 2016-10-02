@@ -9,21 +9,27 @@ import timeit
 from networkx.readwrite import json_graph
 
 
-def generate_map(rows, cols):
+def generate_map(rows, cols, file=None, start=None, goal=None):
 
-    map_config = {}
-    G = init_grid(rows, cols)
-    map_config['centroids'] = add_hard_to_traverse_cells(G)
-    add_highways(G)
-    add_blocked_cells(G)
-    s, g, r, c = mark_start_and_goal_cells(G)
-    map_config['start'] = s
-    map_config['goal'] = g
-    map_config['rows'] = r
-    map_config['cols'] = c
+    if file:
+        if start and goal:
+            G, map_config = import_map(file, start, goal)
+        else:
+            G, map_config = import_map(file)
+    else:
+        map_config = {}
+        G = init_map(rows, cols)
+        map_config['centroids'] = add_hard_to_traverse_cells(G)
+        add_highways(G)
+        add_blocked_cells(G)
+        s, g = mark_start_and_goal_cells(G)
+        map_config['start'] = s
+        map_config['goal'] = g
+        map_config['rows'] = G.graph['rows']
+        map_config['cols'] = G.graph['cols']
+        generate_map_file(G, map_config)
+    
     calculate_edge_weights(G)
-
-    generate_map_file(G, map_config)
     
     data = json_graph.node_link_data(G)
     return (G, json.dumps(data, indent=4, separators=(',', ': ')))
@@ -35,13 +41,22 @@ A node is represented as a string named as:
 def to_node_name(x, y):
     return '%d-%d' % (x, y)
 
-def init_grid(rows, cols):
+def init_map(rows, cols):
         
     G = nx.Graph(rows=rows, cols=cols)
     
     for i in range(cols):
         for j in range(rows):
-            G.add_node(to_node_name(i, j), x=i, y=j, cell_type='unblocked', has_highway=False, tag=1)
+            G.add_node(to_node_name(i, j), x=i, y=j, cell_type='unblocked', has_highway=False, tag='1', highway_index=0)
+    
+    create_edges(G)
+
+    return G
+
+def create_edges(G):
+    
+    rows = G.graph['rows']
+    cols = G.graph['cols']
 
     # potential edges
     edge_dirs = [[-1, -1], [0, -1], [1, -1], [-1, 0],
@@ -52,8 +67,6 @@ def init_grid(rows, cols):
                         G.node[n]['y'] + edge_dir[1])
             if neighbor[0] in range(cols) and neighbor[1] in range(rows):
                 G.add_edge(n, to_node_name(neighbor[0], neighbor[1]), weight=1)
-
-    return G
 
 def add_hard_to_traverse_cells(G):
 
@@ -73,7 +86,7 @@ def add_hard_to_traverse_cells(G):
                     node = G.node[to_node_name(i, j)]
                     if node['cell_type'] != 'hard_to_traverse':
                         node['cell_type'] = 'hard_to_traverse'
-                        node['tag'] = 2
+                        node['tag'] = '2'
 
     return coords
 
@@ -173,7 +186,7 @@ def add_blocked_cells(G):
         if G.node[n]['has_highway']:
             continue
         G.node[n]['cell_type'] = 'blocked'
-        G.node[n]['tag'] = 0
+        G.node[n]['tag'] = '0'
         B -= 1
 
 def mark_start_and_goal_cells(G):
@@ -201,7 +214,7 @@ def mark_start_and_goal_cells(G):
     G.node[to_node_name(start_x, start_y)]['is_start'] = True
     G.node[to_node_name(goal_x, goal_y)]['is_goal'] = True
 
-    return ((start_x, start_y), (goal_x, goal_y), row_count, col_count)
+    return ((start_x, start_y), (goal_x, goal_y))
 
 def calculate_edge_weights(G):
     
@@ -228,9 +241,9 @@ def calculate_edge_weights(G):
             G[u][v]['weight'] = w(u, v)
 
 
-def generate_map_file(G, map_config):
+def generate_map_file(G, map_config, file=None):
     
-    i = 0
+    i = 1
     while os.path.exists('map%s.txt' % i):
         i += 1
 
@@ -246,15 +259,81 @@ def generate_map_file(G, map_config):
     for y in range(G.graph['rows']):
         for x in range(G.graph['cols']):
             if x == G.graph['cols'] - 1:
-                f.write("%s\n" % G.node[to_node_name(x, y)]['tag'])
+                if(not file and G.node[to_node_name(x, y)]['tag'] in "ab"):
+                    f.write("%s%d\n" % (G.node[to_node_name(x, y)]['tag'], G.node[to_node_name(x, y)]['highway_index']))
+                else:
+                    f.write("%s\n" % G.node[to_node_name(x, y)]['tag'])
             else:
-                f.write("%s," % G.node[to_node_name(x, y)]['tag'])
+                if(not file and G.node[to_node_name(x, y)]['tag'] in "ab"):
+                    f.write("%s%d," % (G.node[to_node_name(x, y)]['tag'], G.node[to_node_name(x, y)]['highway_index']))
+                else:
+                    f.write("%s," % G.node[to_node_name(x, y)]['tag'])
 
     f.close()
 
+def import_map(file, start=None, goal=None):
+    
+    map_config = {}
+    f = open(file, 'r')
+
+    data = (f.readline()).split('\n') # eliminate \n character
+    data = data[0].split(',') # delimit coordinate by ','
+    map_config['start'] = start if start else (int(data[0]), int(data[1]))
+
+    data = (f.readline()).split('\n')
+    data = data[0].split(',')
+    map_config['goal'] = goal if goal else (int(data[0]), int(data[1]))
+
+    data = (f.readline()).split('\n')
+    data = data[0].split(',')
+    map_config['rows'] = int(data[0])
+    map_config['cols'] = int(data[1])
+
+    centroids = []
+    for i in range(8):
+        data = (f.readline()).split('\n')
+        data = data[0].split(',')
+        centroids.append((int(data[0]), int(data[1])))
+    map_config['centroids'] = centroids
+    
+    tags = {} # key: map symbol, value = ['cell_type', 'has_highway']
+    tags['0'] = ['blocked', False]
+    tags['1'] = ['unblocked', False]
+    tags['2'] = ['hard_to_traverse', False]
+    tags['a'] = ['unblocked', True]
+    tags['b'] = ['hard_to_traverse', True]
+
+    rows = map_config['rows']
+    cols = map_config['cols']
+    G = nx.Graph(rows=rows, cols=cols)
+    G.graph['start'] = map_config['start']
+    G.graph['goal'] = map_config['goal']
+
+    for i in range(rows): # create nodes from file
+        data = (f.readline()).split('\n')
+        data = data[0].split(',')
+
+        imp = [] # ['tag', 'highwayindex'] (default is zero, and stays zero if no highway)
+        for j in range(cols):
+            if("a" in data[j] or "b" in data[j]):
+                imp.append([data[j][0], int(data[j][1])])
+            else:
+                imp.append([data[j], 0])
+
+            G.add_node(to_node_name(j, i), x=j, y=i, cell_type=tags[imp[j][0]][0], has_highway=tags[imp[j][0]][1], tag=imp[j][0], highway_index=imp[j][1])
+    f.close()
+
+    sx, sy = G.graph['start']
+    gx, gy = G.graph['goal']
+    G.node[to_node_name(sx, sy)]['is_start'] = True
+    G.node[to_node_name(gx, gy)]['is_goal'] = True
+
+    create_edges(G)
+    return (G, map_config)
+
 # Classic A* implementation.
 # Inputs: Graph G
-# Optional Inputs: starting vertex vs, goal vertex vg, optimization flag, lambda heuristic(G, v) 
+# Optional Inputs: starting vertex vs, goal vertex vg, weight w, optimization flag, lambda heuristic(G, v) 
 # Output: List of coordinates corresponding to lowest-cost path
 def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
     
@@ -285,7 +364,8 @@ def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
     heapq.heappush(fringe, (G.node[vs]['g'] + G.node[vs]['h'], vs))
 
     while fringe:
-        _, v = heapq.heappop(fringe)
+        x, v = heapq.heappop(fringe)
+        print x
         expansions += 1
         if v == vg:
             trace, C = path_trace(G, v)
@@ -293,7 +373,7 @@ def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
         closed.add(v) if optimized else closed.append(v)
         for s in G.neighbors(v):
             if s not in closed:
-                G.node[s]['h'] = heuristic(G, s)
+                G.node[s]['h'] = w*heuristic(G, s)
                 # TODO: Need a better fringe data structure not dependent on g being None
                 g = G.node[s]['g'] if 'g' in G.node[s] else None
                 if not g or (g + G.node[s]['h'], s) not in fringe:
@@ -303,7 +383,7 @@ def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
     return ([], -1, expansions, 0) # no path found, C = -1
 
 def update_vertex(G, v, s, fringe):
-    
+        
     old_g = G.node[s]['g']
     g = G.node[v]['g'] + G.get_edge_data(v, s)['weight']
     if g < old_g:
