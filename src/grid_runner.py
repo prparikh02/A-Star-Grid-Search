@@ -55,9 +55,10 @@ def grid(map_num=None, sg_pair_num=None):
 
 @app.route('/grid/astar')
 def astar():
-    w = 1.0
     if request.args.get('w'):
         w = float(request.args.get('w'))
+    else:
+        w = 1.0
     
     start = timeit.default_timer()
     trace, app.node_search_data, C, expansions, moves = generate_maps.astar(app.G, w=w)

@@ -15,6 +15,9 @@
             <input id="weightInput" type="text" value="1.0" style="max-width: 100px;">
         </div>
         <div>
+            <button id="ucsBtn" type="button">Run Uniform-Cost Search</button>
+        </div>
+        <div>
             <button id="showTraceBtn" type="button" onclick="showTrace()">Show Trace</button>
             <button id="clearTraceBtn" type="button" onclick="clearTrace()">Clear Trace</button>
             <div>
@@ -134,6 +137,19 @@
         }
 
         $(document).ready(function() {
+            $('#classicAstarBtn').click(function() {
+                clearTrace();
+                $.ajax({
+                    type: 'GET',
+                    url: '/grid/astar',
+                    success: function(data) {
+                        updateSearchData(data);
+                    }
+                });
+            });
+        });
+
+        $(document).ready(function() {
             $('#weightedAstarBtn').click(function() {
                 clearTrace();
                 var w = parseFloat($('#weightInput').val());
@@ -153,11 +169,12 @@
         });
 
         $(document).ready(function() {
-            $("#classicAstarBtn").click(function() {
+            $('#ucsBtn').click(function() {
                 clearTrace();
                 $.ajax({
                     type: 'GET',
                     url: '/grid/astar',
+                    data: {'w': 0.0},
                     success: function(data) {
                         updateSearchData(data);
                     }
