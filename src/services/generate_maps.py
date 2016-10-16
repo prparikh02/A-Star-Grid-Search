@@ -425,6 +425,7 @@ def get_heuristic(G, heuristic):
     
     D = 0.25 # minimum edge cost (highway)
 
+    # == Admissible Heuristics ==
     euc_dist = lambda G, u: D*math.sqrt(abs(G.node[u]['x'] - G.graph['goal'][0])**2 + 
                                         abs(G.node[u]['y'] - G.graph['goal'][1])**2)
 
@@ -442,6 +443,21 @@ def get_heuristic(G, heuristic):
                                        (math.sqrt(2) - 2*D)*
                                        min(abs(G.node[u]['x'] - G.graph['goal'][0]), 
                                            abs(G.node[u]['y'] - G.graph['goal'][1])))
+
+    # == Inadmissible Heuristics ==
+    xboundary = G.graph['cols'] if (G.graph['goal'][0] > G.graph['cols']/2) else 0
+    yboundary = G.graph['rows'] if (G.graph['goal'][1] > G.graph['rows']/2) else 0
+
+    # heading toward the corner containing the goal
+    corner_man_dist = lambda G, u: D*(abs(G.node[u]['x'] - xboundary) + 
+                                  abs(G.node[u]['y'] - yboundary)) 
+
+    corner_euc_dist = lambda G, u: D*(abs(G.node[u]['x'] - xboundary)**2 + 
+                                      abs(G.node[u]['y'] - yboundary)**2) 
+
+    # inverse of cost since start
+    inv_path_cost = lambda G, u: D/(1 + math.sqrt(abs(G.node[u]['x'] - G.graph['start'][0])**2 +
+                                                  abs(G.node[u]['y'] - G.graph['start'][1])**2))
     
     if not heuristic:
         return euc_dist
@@ -452,6 +468,11 @@ def get_heuristic(G, heuristic):
         return diag_cheb_dist
     elif heuristic == 'octile_diagonal':
         return diag_octile_dist
+    elif heuristic == 'corner_manhattan':
+        return corner_man_dist
+    elif heuristic == 'corner_euclidean':
+        return corner_euc_dist
+    elif heuristic == 'inverse_path_cost':
+        return inv_path_cost
     else:
         return euc_dist
-0
