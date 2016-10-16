@@ -6,6 +6,7 @@ import os
 import random
 import sys
 import timeit
+import types
 from networkx.readwrite import json_graph
 
 
@@ -337,8 +338,8 @@ def import_map(file, start=None, goal=None):
 # Output: List of coordinates corresponding to lowest-cost path
 # Optimizations: Closed set is implemented as a set with O(1) lookup and insertion
 # TODO: Optimize heap
-def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
-    
+def astar(G, vs=None, vg=None, w=1.0, heuristic=None):
+        
     if not vs and not vg:
         x, y = G.graph['start']
         vs = to_node_name(x, y)
@@ -348,21 +349,14 @@ def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
     if vs not in G.nodes() or vg not in G.nodes():
         raise ValueError('Starting node and/or goal node not in graph!')
 
-    euc_dist = lambda G, u: math.sqrt(((G.node[u]['x']-G.graph['goal'][0])**2 + 
-                                        (G.node[u]['y']-G.graph['goal'][1])**2))
-
-    if not heuristic:
-        heuristic = euc_dist
-        if not optimized:
-            add_heuristics(G, w*heuristic)
+    h_fun = get_heuristic(G, heuristic)
 
     expansions = 0
     fringe = []
-    closed = set() if optimized else [] # for academic purposes
+    closed = set()
     G.node[vs]['g'] = 0
     G.node[vs]['parent'] = vs
-    if optimized:
-        G.node[vs]['h'] = w*heuristic(G, vs)
+    G.node[vs]['h'] = w*h_fun(G, vs)
     G.node[vs]['f'] = G.node[vs]['g'] + G.node[vs]['h']
     heapq.heappush(fringe, (G.node[vs]['g'] + G.node[vs]['h'], vs))
 
@@ -372,10 +366,10 @@ def astar(G, vs=None, vg=None, w=1.0, optimized=True, heuristic=None):
         if v == vg:
             trace, C = path_trace(G, v)
             return (trace, G.node, C, expansions, len(trace))
-        closed.add(v) if optimized else closed.append(v)
+        closed.add(v)
         for s in G.neighbors(v):
             if s not in closed:
-                G.node[s]['h'] = w*heuristic(G, s)
+                G.node[s]['h'] = w*h_fun(G, s)
                 # TODO: Need a better fringe data structure not dependent on g being None
                 g = G.node[s]['g'] if 'g' in G.node[s] else None
                 if not g or (g + G.node[s]['h'], s) not in fringe:
@@ -427,14 +421,37 @@ def path_trace(G, v):
     return (trace, C)
 
 # Heuristic must be a lambda
-def add_heuristics(G, heuristic):
+def get_heuristic(G, heuristic):
+    
+    D = 0.25 # minimum edge cost (highway)
 
-    # default to Euclidean distance heuristic
-    goal_x, goal_y = G.graph['goal']
-    for n in G.nodes():
-        if heuristic:
-            G.node[n]['h'] = heuristic(G, n)
-        else:
-            x = G.node[n]['x']
-            y = G.node[n]['y']
-            G.node[n]['h'] = math.sqrt((x-goal_x)**2 + (y-goal_y)**2)
+    euc_dist = lambda G, u: D*math.sqrt(abs(G.node[u]['x'] - G.graph['goal'][0])**2 + 
+                                        abs(G.node[u]['y'] - G.graph['goal'][1])**2)
+
+    man_dist = lambda G, u: D*(abs(G.node[u]['x'] - G.graph['goal'][0]) + 
+                               abs(G.node[u]['y'] - G.graph['goal'][1]))
+
+    diag_cheb_dist = lambda G, u: D*(abs(G.node[u]['x'] - G.graph['goal'][0]) + 
+                                     abs(G.node[u]['y'] - G.graph['goal'][1]) + 
+                                     (1.0 - 2*D)*
+                                     min(abs(G.node[u]['x'] - G.graph['goal'][0]), 
+                                         abs(G.node[u]['y'] - G.graph['goal'][1])))
+
+    diag_octile_dist = lambda G, u: D*(abs(G.node[u]['x'] - G.graph['goal'][0]) + 
+                                       abs(G.node[u]['y'] - G.graph['goal'][1]) + 
+                                       (math.sqrt(2) - 2*D)*
+                                       min(abs(G.node[u]['x'] - G.graph['goal'][0]), 
+                                           abs(G.node[u]['y'] - G.graph['goal'][1])))
+    
+    if not heuristic:
+        return euc_dist
+
+    if heuristic == 'manhattan':
+        return man_dist
+    elif heuristic == 'chebyshev_diagonal':
+        return diag_cheb_dist
+    elif heuristic == 'octile_diagonal':
+        return diag_octile_dist
+    else:
+        return euc_dist
+0

@@ -18,16 +18,25 @@
             <button id="ucsBtn" type="button">Run Uniform-Cost Search</button>
         </div>
         <div>
+            <span>Heuristic:</span>
+            <select id="heuristicSelection">
+                <option value="euclidean" selected>Euclidean</option>
+                <option value="manhattan">Manhattan</option>
+                <option value="chebyshev_diagonal">Chebyshev Diagonal</option>
+                <option value="octile_diagonal">Octile Diagonal</option>
+            </select>
+        </div>
+        <div>
             <button id="showTraceBtn" type="button" onclick="showTrace()">Show Trace</button>
             <button id="clearTraceBtn" type="button" onclick="clearTrace()">Clear Trace</button>
-            <div>
-                <p>
-                    Cost: <span id="costTxt"></span><br>
-                    Expansions: <span id="expansionsTxt"></span><br>
-                    Moves: <span id="movesTxt"></span><br>
-                    Time (s): <span id="timeTxt"></span>
-                </p>
-            </div>
+        </div>
+        <div>
+            <p>
+                Cost: <span id="costTxt"></span><br>
+                Expansions: <span id="expansionsTxt"></span><br>
+                Moves: <span id="movesTxt"></span><br>
+                Time (s): <span id="timeTxt"></span>
+            </p>
         </div>
         <div>
             <span>Get search values f, g, h for node (R,C): <br></span>
@@ -139,9 +148,11 @@
         $(document).ready(function() {
             $('#classicAstarBtn').click(function() {
                 clearTrace();
+                var h = $('#heuristicSelection').val();
                 $.ajax({
                     type: 'GET',
                     url: '/grid/astar',
+                    data: {'h': h},
                     success: function(data) {
                         updateSearchData(data);
                     }
@@ -157,10 +168,11 @@
                     alert('Please enter a floating point decimal');
                     return;
                 }
+                var h = $('#heuristicSelection').val();
                 $.ajax({
                     type: 'GET',
                     url: '/grid/astar',
-                    data: {'w': w},
+                    data: {'w': w, 'h': h},
                     success: function(data) {
                         updateSearchData(data);
                     }
@@ -171,10 +183,11 @@
         $(document).ready(function() {
             $('#ucsBtn').click(function() {
                 clearTrace();
+                var h = $('#heuristicSelection').val();
                 $.ajax({
                     type: 'GET',
                     url: '/grid/astar',
-                    data: {'w': 0.0},
+                    data: {'w': 0.0, 'h': h},
                     success: function(data) {
                         updateSearchData(data);
                     }
