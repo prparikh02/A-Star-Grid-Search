@@ -53,7 +53,7 @@ def grid(map_num=None, sg_pair_num=None):
                             cols=cols, 
                             graph_data=graph_data)
 
-@app.route('/grid/astar')
+@app.route('/grid/Astar')
 def astar():
     if request.args.get('w'):
         w = float(request.args.get('w'))
@@ -62,6 +62,24 @@ def astar():
     
     start = timeit.default_timer()
     trace, app.node_search_data, C, expansions, moves = generate_maps.astar(app.G, w=w, heuristic=request.args.get('h'))
+    elapsed = timeit.default_timer() - start
+
+    return jsonify(trace=trace, cost=C, expansions=expansions, moves=moves, time=elapsed)
+
+@app.route('/grid/SHAstar')
+def shastar():
+    if request.args.get('w1'):
+        w1 = float(request.args.get('w1'))
+    else:
+        w = 1.0
+
+    if request.args.get('w2'):
+        w2 = float(request.args.get('w2'))
+    else:
+        w2 = 1.0
+    
+    start = timeit.default_timer()
+    trace, app.node_search_data, C, expansions, moves = generate_maps.shastar(app.G, w1=w1, w2=w2)
     elapsed = timeit.default_timer() - start
 
     return jsonify(trace=trace, cost=C, expansions=expansions, moves=moves, time=elapsed)

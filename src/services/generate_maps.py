@@ -334,9 +334,8 @@ def import_map(file, start=None, goal=None):
 
 # Versatile A* implementation
 # Inputs: Graph G
-# Optional Inputs: starting vertex vs, goal vertex vg, weight w, optimization flag, lambda heuristic(G, v) 
+# Optional Inputs: starting vertex vs, goal vertex vg, weight w, heuristic option 
 # Output: List of coordinates corresponding to lowest-cost path
-# Optimizations: Closed set is implemented as a set with O(1) lookup and insertion
 # TODO: Optimize heap
 def astar(G, vs=None, vg=None, w=1.0, heuristic=None):
         
@@ -348,6 +347,8 @@ def astar(G, vs=None, vg=None, w=1.0, heuristic=None):
     
     if vs not in G.nodes() or vg not in G.nodes():
         raise ValueError('Starting node and/or goal node not in graph!')
+
+    clear_node_search_properties(G)
 
     h_fun = get_heuristic(G, heuristic)
 
@@ -373,7 +374,7 @@ def astar(G, vs=None, vg=None, w=1.0, heuristic=None):
                 # TODO: Need a better fringe data structure not dependent on g being None
                 g = G.node[s]['g'] if 'g' in G.node[s] else None
                 if not g or (g + G.node[s]['h'], s) not in fringe:
-                    G.node[s]['g'] = sys.maxint
+                    G.node[s]['g'] = float('inf')
                     G.node[s]['parent'] = None
                 update_vertex(G, v, s, fringe)
     return ([], G.node, -1, expansions, 0) # no path found, C = -1
@@ -391,79 +392,154 @@ def update_vertex(G, v, s, fringe):
         s_tup = (old_g + h, s)
         if s_tup in fringe:
             fringe.remove(s_tup)
+            heapq.heapify(fringe)
         heapq.heappush(fringe, (f, s))
 
-def path_trace(G, v):
+# Sequential Heuristic A* Implementation
+# Inputs: Graph G
+# Optional Inputs: starting vertex vs, goal vertex vg, weight w, anchor heuristic option (must be admissible) 
+# Output: List of coordinates corresponding to lowest-cost path
+# TODO: Optimize heap
+# TODO: Need better way to pass in w1/w2/N values
+def shastar(G, vs=None, vg=None, w1=1.25, w2=1.25):
     
-    trace = []
-    C = 0
-    while True:
-        trace.append({
-            'x': G.node[v]['x'],
-            'y': G.node[v]['y'],
-            'f': G.node[v]['f'],
-            'g': G.node[v]['g'],
-            'h': G.node[v]['h']
-        })
-        p = G.node[v]['parent']
-        C += G.get_edge_data(v, p)['weight']
-        v = p
-        if G.node[v]['parent'] == v:
-            trace.append({
-                'x': G.node[v]['x'],
-                'y': G.node[v]['y'],
-                'f': G.node[v]['f'],
-                'g': G.node[v]['g'],
-                'h': G.node[v]['h']
-            })
-            break
-    trace.reverse()
-    return (trace, C)
+    if not vs and not vg:
+        x, y = G.graph['start']
+        vs = to_node_name(x, y)
+        x, y = G.graph['goal']
+        vg = to_node_name(x, y)
+    
+    if vs not in G.nodes() or vg not in G.nodes():
+        raise ValueError('Starting node and/or goal node not in graph!')
+
+    clear_node_search_properties(G)
+
+    N = 5
+    expansions = [0 for i in range(N)]
+    fringe = [[] for i in range(N)]
+    closed = [set() for i in range(N)]
+    for i in range(N):
+        G.node[vs].setdefault('g', []).append(0)
+        G.node[vs].setdefault('parent', []).append(vs)
+        G.node[vg].setdefault('g', []).append(float('inf'))
+        G.node[vg].setdefault('parent', []).append(None)
+        heapq.heappush(fringe[i], (keys(G, vs, i, w1), vs)) 
+
+    while fringe[0][0][0] < float('inf'):
+        for i in range(1, N):
+            if fringe[i][0][0] <= w2*fringe[0][0][0]:
+                if G.node[vg]['g'][i] <= fringe[i][0][0]:
+                    if G.node[vg]['g'][i] < float('inf'):
+                        trace, C = path_trace(G, vg, i)
+                        return trace, G.node, C, expansions[i], len(trace)
+                else:
+                    _, s = heapq.heappop(fringe[i])
+                    expansions[i] += 1
+                    expand_state(G, s, fringe, closed, i, w1)
+                    closed[i].add(s)
+            else:
+                if G.node[vg]['g'][0] <= fringe[0][0][0]:
+                    if G.node[vg]['g'][0] < float('inf'):
+                        trace, C = path_trace(G, vg, 0)
+                        return trace, G.node, C, expansions[i], len(trace)
+                else:
+                    _, s = heapq.heappop(fringe[0])
+                    expansions[i] += 1
+                    expand_state(G, s, fringe, closed, 0, w1)
+                    closed[0].add(s)
+
+    return ([], G.node, -1, expansions[i], 0) # no path found, C = -1
+
+
+def expand_state(G, s, fringe, closed, i, w1=1.25, N=5):
+    
+    # notation: sp === s'
+    for sp in G.neighbors(s):
+        # Check to see if sp has ever been generated
+        if 'g' not in G.node[sp]:
+             G.node[sp]['g'] = [[] for j in range(N)]
+             G.node[sp]['h'] = [[] for j in range(N)]
+             G.node[sp]['f'] = [[] for j in range(N)]
+             G.node[sp]['parent'] = [[] for j in range(N)]
+        if G.node[sp]['g'][i] == []:
+            G.node[sp]['g'][i] = float('inf')
+            G.node[sp]['parent'][i] = None
+
+
+        sp_tup = (keys(G, sp, i, w1), sp)
+        c = G.get_edge_data(s, sp)['weight']
+        if G.node[sp]['g'][i] > G.node[s]['g'][i] + c:
+            G.node[sp]['g'][i] = G.node[s]['g'][i] + c
+            G.node[sp]['parent'][i] = s
+            if sp not in closed[i]:
+                if sp_tup in fringe[i]:
+                    fringe[i].remove(sp_tup)
+                    heapq.heapify(fringe[i])
+                heapq.heappush(fringe[i], (keys(G, sp, i, w1), sp))
+
+def keys(G, u, i, w1=1.25, N=5):
+    
+    # H[0] is 'anchor' heuristic which must be admissible
+    H = ['euclidean', 'chebyshev_diagonal', 'corner_euclidean', 'manhattan', 'inadmissible_euclidean']
+    h_fun = get_heuristic(G, H[i])
+    h = h_fun(G, u)
+
+    if 'h' not in G.node[u]:
+        G.node[u]['h'] = [[] for j in range(N)]
+    if 'f' not in G.node[u]:
+        G.node[u]['f'] = [[] for j in range(N)]
+
+    G.node[u]['h'][i] = h
+    f = G.node[u]['g'][i] + w1*h
+    G.node[u]['f'][i] = f
+
+    return f
+
 
 # Heuristic must be a lambda
 def get_heuristic(G, heuristic):
     
     D = 0.25 # minimum edge cost (highway)
 
-    # == Admissible Heuristics ==
-    euc_dist = lambda G, u: D*math.sqrt(abs(G.node[u]['x'] - G.graph['goal'][0])**2 + 
-                                        abs(G.node[u]['y'] - G.graph['goal'][1])**2)
+    dx = lambda G, u: abs(G.node[u]['x'] - G.graph['goal'][0])
+    dy = lambda G, u: abs(G.node[u]['y'] - G.graph['goal'][1])
 
-    man_dist = lambda G, u: D*(abs(G.node[u]['x'] - G.graph['goal'][0]) + 
-                               abs(G.node[u]['y'] - G.graph['goal'][1]))
+    # Standard distance metrics
+    minkowski = lambda G, u, p: D*(dx(G, u)**p + dy(G, u)**p)**(1.0/p)
+    man_dist = lambda G, u: minkowski(G, u, 1)
+    eucl_dist = lambda G, u: minkowski(G, u, 2)
 
-    diag_cheb_dist = lambda G, u: D*(abs(G.node[u]['x'] - G.graph['goal'][0]) + 
-                                     abs(G.node[u]['y'] - G.graph['goal'][1]) + 
-                                     (1.0 - 2*D)*
-                                     min(abs(G.node[u]['x'] - G.graph['goal'][0]), 
-                                         abs(G.node[u]['y'] - G.graph['goal'][1])))
+    mean_abs_err = lambda G, u: man_dist(G, u)/2.0
+    mean_sq_err = lambda G, u: (eucl_dist(G, u)**2)/(D*2)
 
-    diag_octile_dist = lambda G, u: D*(abs(G.node[u]['x'] - G.graph['goal'][0]) + 
-                                       abs(G.node[u]['y'] - G.graph['goal'][1]) + 
-                                       (math.sqrt(2) - 2*D)*
-                                       min(abs(G.node[u]['x'] - G.graph['goal'][0]), 
-                                           abs(G.node[u]['y'] - G.graph['goal'][1])))
+    diag_dist = lambda G, u, D2: D*(dx(G, u) + dy(G, u) + (D2 - 2*D)*min(dx(G, u), dy(G, u)))
+    diag_cheb_dist = lambda G, u: diag_dist(G, u, 1)
+    diag_octile_dist = lambda G, u: diag_dist(G, u, math.sqrt(2))
 
-    # == Inadmissible Heuristics ==
     xboundary = G.graph['cols'] if (G.graph['goal'][0] > G.graph['cols']/2) else 0
     yboundary = G.graph['rows'] if (G.graph['goal'][1] > G.graph['rows']/2) else 0
 
+    # custom heuristics (inadmissible)
     # heading toward the corner containing the goal
-    corner_man_dist = lambda G, u: D*(abs(G.node[u]['x'] - xboundary) + 
-                                  abs(G.node[u]['y'] - yboundary)) 
+    corner_man_dist = lambda G, u: D*(abs(G.node[u]['x'] - xboundary) +
+                                      abs(G.node[u]['y'] - yboundary))
 
-    corner_euc_dist = lambda G, u: D*(abs(G.node[u]['x'] - xboundary)**2 + 
-                                      abs(G.node[u]['y'] - yboundary)**2) 
+    corner_eucl_dist = lambda G, u: D*math.sqrt((abs(G.node[u]['x'] - xboundary)**2 +
+                                                 abs(G.node[u]['y'] - yboundary)**2))
+    inadmissible_eucl_dist = lambda G, u: eucl_dist(G, u)/D
 
     # inverse of cost since start
     inv_path_cost = lambda G, u: D/(1 + math.sqrt(abs(G.node[u]['x'] - G.graph['start'][0])**2 +
                                                   abs(G.node[u]['y'] - G.graph['start'][1])**2))
     
-    if not heuristic:
-        return euc_dist
-
-    if heuristic == 'manhattan':
+    if heuristic == 'euclidean':
+        return eucl_dist
+    elif heuristic == 'manhattan':
         return man_dist
+    elif heuristic == 'mean_absolute_error':
+        return mean_abs_err
+    elif heuristic == 'mean_square_error':
+        return mean_sq_err
     elif heuristic == 'chebyshev_diagonal':
         return diag_cheb_dist
     elif heuristic == 'octile_diagonal':
@@ -471,8 +547,47 @@ def get_heuristic(G, heuristic):
     elif heuristic == 'corner_manhattan':
         return corner_man_dist
     elif heuristic == 'corner_euclidean':
-        return corner_euc_dist
+        return corner_eucl_dist
     elif heuristic == 'inverse_path_cost':
         return inv_path_cost
+    elif heuristic == 'inadmissible_euclidean':
+        return inadmissible_eucl_dist
     else:
-        return euc_dist
+        return eucl_dist
+
+def path_trace(G, v, i=None):
+    
+    trace = []
+    C = 0
+    while True:
+        trace.append({
+            'x': G.node[v]['x'],
+            'y': G.node[v]['y'],
+            'f': G.node[v]['f'][i] if i != None else G.node[v]['f'],
+            'g': G.node[v]['g'][i] if i != None else G.node[v]['g'],
+            'h': G.node[v]['h'][i] if i != None else G.node[v]['h']
+        })
+        p = G.node[v]['parent'][i] if i != None else G.node[v]['parent']
+        C += G.get_edge_data(v, p)['weight']
+        v = p
+        pp = G.node[v]['parent'][i] if i != None else G.node[v]['parent']
+
+        if pp == v:
+            trace.append({
+                'x': G.node[v]['x'],
+                'y': G.node[v]['y'],
+                'f': G.node[v]['f'][i] if i != None else G.node[v]['f'],
+                'g': G.node[v]['g'][i] if i != None else G.node[v]['g'],
+                'h': G.node[v]['h'][i] if i != None else G.node[v]['h']
+            })
+            break
+
+    trace.reverse()
+    return trace, C
+
+def clear_node_search_properties(G):
+
+    keys = ['parent', 'f', 'g', 'h']
+    for n in G.nodes():
+        for k in keys:
+            G.node[n].pop(k, None)

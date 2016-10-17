@@ -14,20 +14,26 @@
             <button id="weightedAstarBtn" type="button">Run Weighted A*</button>
             <input id="weightInput" type="text" value="1.0" style="max-width: 100px;">
         </div>
-        <div>
-            <button id="ucsBtn" type="button">Run Uniform-Cost Search</button>
-        </div>
+        <button id="ucsBtn" type="button">Run Uniform-Cost Search</button>
         <div>
             <span>Heuristic:</span>
             <select id="heuristicSelection">
                 <option value="euclidean" selected>Euclidean</option>
                 <option value="manhattan">Manhattan</option>
+                <option value="mean_absolute_error">Mean Absolute Error</option>
+                <option value="mean_square_error">Mean Square Error</option>
                 <option value="chebyshev_diagonal">Chebyshev Diagonal</option>
                 <option value="octile_diagonal">Octile Diagonal</option>
                 <option value="corner_euclidean">Corner Euclidean</option>
                 <option value="corner_manhattan">Corner Manhattan</option>
+                <option value="inadmissible_euclidean">Inadmissible Euclidean</option>
                 <option value="inverse_path_cost">Inverse Path Cost</option>
             </select>
+        </div>
+        <div>
+            <button id="shaBtn" type="button">Run Sequential Heuristic</button>
+            <input id="w1Input" type="text" value="1.25" style="max-width: 50px;">
+            <input id="w2Input" type="text" value="2.00" style="max-width: 50px;">
         </div>
         <div>
             <button id="showTraceBtn" type="button" onclick="showTrace()">Show Trace</button>
@@ -151,13 +157,16 @@
         $(document).ready(function() {
             $('#classicAstarBtn').click(function() {
                 clearTrace();
+                $('button').attr('disabled', true);
                 var h = $('#heuristicSelection').val();
                 $.ajax({
                     type: 'GET',
-                    url: '/grid/astar',
+                    url: '/grid/Astar',
                     data: {'h': h},
                     success: function(data) {
                         updateSearchData(data);
+                        $('button').attr('disabled', false);
+                        showTrace();
                     }
                 });
             });
@@ -166,6 +175,7 @@
         $(document).ready(function() {
             $('#weightedAstarBtn').click(function() {
                 clearTrace();
+                $('button').attr('disabled', true);
                 var w = parseFloat($('#weightInput').val());
                 if (isNaN(w)) {
                     alert('Please enter a floating point decimal');
@@ -174,10 +184,12 @@
                 var h = $('#heuristicSelection').val();
                 $.ajax({
                     type: 'GET',
-                    url: '/grid/astar',
+                    url: '/grid/Astar',
                     data: {'w': w, 'h': h},
                     success: function(data) {
                         updateSearchData(data);
+                        $('button').attr('disabled', false);
+                        showTrace();
                     }
                 });
             });
@@ -186,13 +198,39 @@
         $(document).ready(function() {
             $('#ucsBtn').click(function() {
                 clearTrace();
+                $('button').attr('disabled', true);
                 var h = $('#heuristicSelection').val();
                 $.ajax({
                     type: 'GET',
-                    url: '/grid/astar',
+                    url: '/grid/Astar',
                     data: {'w': 0.0, 'h': h},
                     success: function(data) {
                         updateSearchData(data);
+                        $('button').attr('disabled', false);
+                        showTrace();
+                    }
+                });
+            });
+        });
+
+        $(document).ready(function() {
+            $('#shaBtn').click(function() {
+                clearTrace();
+                $('button').attr('disabled', true);
+                var w1 = parseFloat($('#w1Input').val());
+                var w2 = parseFloat($('#w2Input').val());
+                if (isNaN(w1) || isNaN(w2)) {
+                    alert('Please enter a floating point decimal');
+                    return;
+                }
+                $.ajax({
+                    type: 'GET',
+                    url: '/grid/SHAstar',
+                    data: {'w1': w1, 'w2': w2},
+                    success: function(data) {
+                        updateSearchData(data);
+                        $('button').attr('disabled', false);
+                        showTrace();
                     }
                 });
             });
