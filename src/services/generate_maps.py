@@ -607,7 +607,7 @@ def get_heuristic(G, heuristic):
     mean_abs_err = lambda G, u: man_dist(G, u)/2.0
     mean_sq_err = lambda G, u: (eucl_dist(G, u)**2)/(D*2)
 
-    diag_dist = lambda G, u, D2: D*(dx(G, u) + dy(G, u) + (D2 - 2*D)*min(dx(G, u), dy(G, u)))
+    diag_dist = lambda G, u, D2: D*(dx(G, u) + dy(G, u)) + (D2 - 2*D)*min(dx(G, u), dy(G, u))
     diag_cheb_dist = lambda G, u: diag_dist(G, u, 1)
     diag_octile_dist = lambda G, u: diag_dist(G, u, math.sqrt(2))
 

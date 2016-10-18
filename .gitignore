@@ -1,0 +1,4 @@
+/.vscode*
+*.pyc
+./map*.txt
+evaluator*.py
