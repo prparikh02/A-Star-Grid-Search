@@ -337,7 +337,7 @@ def import_map(file, start=None, goal=None):
 # Optional Inputs: starting vertex vs, goal vertex vg, weight w, heuristic option 
 # Output: List of coordinates corresponding to lowest-cost path
 # TODO: Optimize heap
-def astar(G, vs=None, vg=None, w=1.0, heuristic=None):
+def Astar(G, vs=None, vg=None, w=1.0, heuristic=None):
         
     if not vs and not vg:
         x, y = G.graph['start']
@@ -397,11 +397,11 @@ def update_vertex(G, v, s, fringe):
 
 # Sequential Heuristic A* Implementation
 # Inputs: Graph G
-# Optional Inputs: starting vertex vs, goal vertex vg, weight w, anchor heuristic option (must be admissible) 
+# Optional Inputs: starting vertex vs, goal vertex vg, weights w1 and w2
 # Output: List of coordinates corresponding to lowest-cost path
 # TODO: Optimize heap
 # TODO: Need better way to pass in w1/w2/N values
-def shastar(G, vs=None, vg=None, w1=1.25, w2=1.25):
+def SHAstar(G, vs=None, vg=None, w1=1.25, w2=1.25):
     
     if not vs and not vg:
         x, y = G.graph['start']
@@ -423,35 +423,34 @@ def shastar(G, vs=None, vg=None, w1=1.25, w2=1.25):
         G.node[vs].setdefault('parent', []).append(vs)
         G.node[vg].setdefault('g', []).append(float('inf'))
         G.node[vg].setdefault('parent', []).append(None)
-        heapq.heappush(fringe[i], (keys(G, vs, i, w1), vs)) 
+        heapq.heappush(fringe[i], (keys(G, vs, i, w1=w1), vs)) 
 
     while fringe[0][0][0] < float('inf'):
         for i in range(1, N):
             if fringe[i][0][0] <= w2*fringe[0][0][0]:
                 if G.node[vg]['g'][i] <= fringe[i][0][0]:
                     if G.node[vg]['g'][i] < float('inf'):
-                        trace, C = path_trace(G, vg, i)
+                        trace, C = path_trace_many_heuristics(G, vg, i)
                         return trace, G.node, C, expansions[i], len(trace)
                 else:
                     _, s = heapq.heappop(fringe[i])
                     expansions[i] += 1
-                    expand_state(G, s, fringe, closed, i, w1)
+                    expand_state_SHA(G, s, fringe, closed, i, w1)
                     closed[i].add(s)
             else:
                 if G.node[vg]['g'][0] <= fringe[0][0][0]:
                     if G.node[vg]['g'][0] < float('inf'):
-                        trace, C = path_trace(G, vg, 0)
+                        trace, C = path_trace_many_heuristics(G, vg, 0)
                         return trace, G.node, C, expansions[i], len(trace)
                 else:
                     _, s = heapq.heappop(fringe[0])
                     expansions[i] += 1
-                    expand_state(G, s, fringe, closed, 0, w1)
+                    expand_state_SHA(G, s, fringe, closed, 0, w1)
                     closed[0].add(s)
 
     return ([], G.node, -1, expansions[i], 0) # no path found, C = -1
 
-
-def expand_state(G, s, fringe, closed, i, w1=1.25, N=5):
+def expand_state_SHA(G, s, fringe, closed, i, w1=1.25, N=5):
     
     # notation: sp === s'
     for sp in G.neighbors(s):
@@ -465,7 +464,6 @@ def expand_state(G, s, fringe, closed, i, w1=1.25, N=5):
             G.node[sp]['g'][i] = float('inf')
             G.node[sp]['parent'][i] = None
 
-
         sp_tup = (keys(G, sp, i, w1), sp)
         c = G.get_edge_data(s, sp)['weight']
         if G.node[sp]['g'][i] > G.node[s]['g'][i] + c:
@@ -477,24 +475,121 @@ def expand_state(G, s, fringe, closed, i, w1=1.25, N=5):
                     heapq.heapify(fringe[i])
                 heapq.heappush(fringe[i], (keys(G, sp, i, w1), sp))
 
-def keys(G, u, i, w1=1.25, N=5):
+# Integrated Heuristic A* Implementation
+# Inputs: Graph G
+# Optional Inputs: starting vertex vs, goal vertex vg, weights w1 and w2
+# Output: List of coordinates corresponding to lowest-cost path
+# TODO: Optimize heap
+# TODO: Need better way to pass in w1/w2/N values
+def IHAstar(G, vs=None, vg=None, w1=1.25, w2=1.25):
     
+    if not vs and not vg:
+        x, y = G.graph['start']
+        vs = to_node_name(x, y)
+        x, y = G.graph['goal']
+        vg = to_node_name(x, y)
+    
+    if vs not in G.nodes() or vg not in G.nodes():
+        raise ValueError('Starting node and/or goal node not in graph!')
+
+    clear_node_search_properties(G)
+
+    G.node[vs]['g'] = 0
+    G.node[vs]['parent'] = vs
+    G.node[vg]['g'] = float('inf')
+    G.node[vg]['parent'] = None
+
+    N = 5
+    expansions = [0 for i in range(N)]
+    fringe = [[] for i in range(N)]
+    for i in range(N):
+        heapq.heappush(fringe[i], (keys(G, vs, i, w1=w1, isIHA=True), vs)) 
+
+    closed = {
+        'anchor': set(),
+        'inad': set()
+    }
+
+    while fringe[0][0][0] < float('inf'):
+        for i in range(1, N):
+            if fringe[i][0][0] <= w2*fringe[0][0][0]:
+                if G.node[vg]['g'] <= fringe[i][0][0]:
+                    if G.node[vg]['g'] < float('inf'):
+                        trace, C = path_trace_many_heuristics(G, vg, i, isIHA=True)
+                        return trace, G.node, C, expansions[i], len(trace)
+                else:
+                    _, s = heapq.heappop(fringe[i])
+                    expansions[i] += 1
+                    expand_state_IHA(G, s, fringe, closed, i, w1, w2)
+                    closed['inad'].add(s)
+            else:
+                if G.node[vg]['g'] <= fringe[0][0][0]:
+                    if G.node[vg]['g'] < float('inf'):
+                        trace, C = path_trace_many_heuristics(G, vg, 0, isIHA=True)
+                        return trace, G.node, C, expansions[i], len(trace)
+                else:
+                    _, s = heapq.heappop(fringe[0])
+                    expansions[i] += 1
+                    expand_state_IHA(G, s, fringe, closed, 0, w1, w2)
+                    closed['anchor'].add(s)
+
+    return ([], G.node, -1, expansions[i], 0) # no path found, C = -1
+
+def expand_state_IHA(G, s, fringe, closed, i, w1=1.25, w2=2.0, N=5):
+    
+    s_tup = (keys(G, s, i, w1=w1, isIHA=True), s)
+    for i in range(N):
+        if s_tup in fringe[i]:
+            fringe[i].remove(s_tup)
+            heapq.heapify(fringe[i])
+    
+    # notation: sp === s'
+    for sp in G.neighbors(s):
+        # Check to see if sp has ever been generated
+        if 'g' not in G.node[sp]:
+             G.node[sp]['g'] = float('inf')
+             G.node[sp]['h'] = [[] for j in range(N)]
+             G.node[sp]['f'] = [[] for j in range(N)]
+             G.node[sp]['parent'] = None
+
+        sp_tup = (keys(G, sp, i, w1=w1, isIHA=True), sp)
+        c = G.get_edge_data(s, sp)['weight']
+        if G.node[sp]['g'] > G.node[s]['g'] + c:
+            G.node[sp]['g'] = G.node[s]['g'] + c
+            G.node[sp]['parent'] = s
+            if sp not in closed['anchor']:
+                if sp_tup in fringe[0]:
+                    fringe[0].remove(sp_tup)
+                    heapq.heapify(fringe[0])
+                heapq.heappush(fringe[0], (keys(G, sp, 0, w1=w1, isIHA=True), sp))
+                if sp not in closed['inad']:
+                    for i in range(1, N):
+                        if keys(G, sp, i, w1=w1, isIHA=True) <= w2*keys(G, sp, 0, w1=w1,isIHA=True):
+                            if sp_tup in fringe[i]:
+                                fringe[i].remove(sp_tup)
+                                heapq.heapify(fringe[i])
+                            heapq.heappush(fringe[i], (keys(G, sp, i, w1=w1, isIHA=True), sp))
+
+def keys(G, s, i, w1=1.25, N=5, isIHA=False):
+        
     # H[0] is 'anchor' heuristic which must be admissible
     H = ['euclidean', 'chebyshev_diagonal', 'corner_euclidean', 'manhattan', 'inadmissible_euclidean']
     h_fun = get_heuristic(G, H[i])
-    h = h_fun(G, u)
+    h = h_fun(G, s)
 
-    if 'h' not in G.node[u]:
-        G.node[u]['h'] = [[] for j in range(N)]
-    if 'f' not in G.node[u]:
-        G.node[u]['f'] = [[] for j in range(N)]
+    if 'h' not in G.node[s]:
+        G.node[s]['h'] = [[] for j in range(N)]
+    if 'f' not in G.node[s]:
+        G.node[s]['f'] = [[] for j in range(N)]
 
-    G.node[u]['h'][i] = h
-    f = G.node[u]['g'][i] + w1*h
-    G.node[u]['f'][i] = f
+    G.node[s]['h'][i] = h
+    if isIHA:
+        f = G.node[s]['g'] + w1*h
+    else:
+        f = G.node[s]['g'][i] + w1*h
+    G.node[s]['f'][i] = f
 
     return f
-
 
 # Heuristic must be a lambda
 def get_heuristic(G, heuristic):
@@ -555,7 +650,7 @@ def get_heuristic(G, heuristic):
     else:
         return eucl_dist
 
-def path_trace(G, v, i=None):
+def path_trace(G, v):
     
     trace = []
     C = 0
@@ -563,22 +658,49 @@ def path_trace(G, v, i=None):
         trace.append({
             'x': G.node[v]['x'],
             'y': G.node[v]['y'],
-            'f': G.node[v]['f'][i] if i != None else G.node[v]['f'],
-            'g': G.node[v]['g'][i] if i != None else G.node[v]['g'],
-            'h': G.node[v]['h'][i] if i != None else G.node[v]['h']
+            'f': G.node[v]['f'],
+            'g': G.node[v]['g'],
+            'h': G.node[v]['h']
         })
-        p = G.node[v]['parent'][i] if i != None else G.node[v]['parent']
+        p = G.node[v]['parent']
         C += G.get_edge_data(v, p)['weight']
         v = p
-        pp = G.node[v]['parent'][i] if i != None else G.node[v]['parent']
+        if G.node[v]['parent'] == v:
+            trace.append({
+                'x': G.node[v]['x'],
+                'y': G.node[v]['y'],
+                'f': G.node[v]['f'],
+                'g': G.node[v]['g'],
+                'h': G.node[v]['h']
+            })
+            break
 
+    trace.reverse()
+    return trace, C
+
+def path_trace_many_heuristics(G, v, i, isIHA=False):
+    
+    trace = []
+    C = 0
+    while True:
+        trace.append({
+            'x': G.node[v]['x'],
+            'y': G.node[v]['y'],
+            'f': G.node[v]['f'][i],
+            'g': G.node[v]['g'] if isIHA else G.node[v]['g'][i],
+            'h': G.node[v]['h'][i]
+        })
+        p = G.node[v]['parent'] if isIHA else G.node[v]['parent'][i]
+        C += G.get_edge_data(v, p)['weight']
+        v = p
+        pp = G.node[v]['parent'] if isIHA else G.node[v]['parent'][i]
         if pp == v:
             trace.append({
                 'x': G.node[v]['x'],
                 'y': G.node[v]['y'],
-                'f': G.node[v]['f'][i] if i != None else G.node[v]['f'],
-                'g': G.node[v]['g'][i] if i != None else G.node[v]['g'],
-                'h': G.node[v]['h'][i] if i != None else G.node[v]['h']
+                'f': G.node[v]['f'][i],
+                'g': G.node[v]['g'] if isIHA else G.node[v]['g'][i],
+                'h': G.node[v]['h'][i]
             })
             break
 

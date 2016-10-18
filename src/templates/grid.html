@@ -31,9 +31,14 @@
             </select>
         </div>
         <div>
-            <button id="shaBtn" type="button">Run Sequential Heuristic</button>
-            <input id="w1Input" type="text" value="1.25" style="max-width: 50px;">
-            <input id="w2Input" type="text" value="2.00" style="max-width: 50px;">
+            <button id="shaBtn" type="button">Run Sequential Heuristic A*</button>
+            <input id="w1ShaInput" type="text" value="1.25" style="max-width: 50px;">
+            <input id="w2ShaInput" type="text" value="2.00" style="max-width: 50px;">
+        </div>
+        <div>
+            <button id="ihaBtn" type="button">Run Integrated Heuristic A*</button>
+            <input id="w1IhaInput" type="text" value="1.25" style="max-width: 50px;">
+            <input id="w2IhaInput" type="text" value="2.00" style="max-width: 50px;">
         </div>
         <div>
             <button id="showTraceBtn" type="button" onclick="showTrace()">Show Trace</button>
@@ -165,8 +170,10 @@
                     data: {'h': h},
                     success: function(data) {
                         updateSearchData(data);
-                        $('button').attr('disabled', false);
                         showTrace();
+                    },
+                    complete: function() {
+                        $('button').attr('disabled', false);
                     }
                 });
             });
@@ -188,8 +195,10 @@
                     data: {'w': w, 'h': h},
                     success: function(data) {
                         updateSearchData(data);
-                        $('button').attr('disabled', false);
                         showTrace();
+                    },
+                    complete: function() {
+                        $('button').attr('disabled', false);
                     }
                 });
             });
@@ -206,8 +215,10 @@
                     data: {'w': 0.0, 'h': h},
                     success: function(data) {
                         updateSearchData(data);
-                        $('button').attr('disabled', false);
                         showTrace();
+                    },
+                    complete: function() {
+                        $('button').attr('disabled', false);
                     }
                 });
             });
@@ -217,8 +228,8 @@
             $('#shaBtn').click(function() {
                 clearTrace();
                 $('button').attr('disabled', true);
-                var w1 = parseFloat($('#w1Input').val());
-                var w2 = parseFloat($('#w2Input').val());
+                var w1 = parseFloat($('#w1ShaInput').val());
+                var w2 = parseFloat($('#w2ShaInput').val());
                 if (isNaN(w1) || isNaN(w2)) {
                     alert('Please enter a floating point decimal');
                     return;
@@ -229,13 +240,40 @@
                     data: {'w1': w1, 'w2': w2},
                     success: function(data) {
                         updateSearchData(data);
-                        $('button').attr('disabled', false);
                         showTrace();
+                    },
+                    complete: function() {
+                        $('button').attr('disabled', false);
                     }
                 });
             });
         });
         
+        $(document).ready(function() {
+            $('#ihaBtn').click(function() {
+                clearTrace();
+                $('button').attr('disabled', true);
+                var w1 = parseFloat($('#w1IhaInput').val());
+                var w2 = parseFloat($('#w2IhaInput').val());
+                if (isNaN(w1) || isNaN(w2)) {
+                    alert('Please enter a floating point decimal');
+                    return;
+                }
+                $.ajax({
+                    type: 'GET',
+                    url: '/grid/IHAstar',
+                    data: {'w1': w1, 'w2': w2},
+                    success: function(data) {
+                        updateSearchData(data);
+                        showTrace();
+                    },
+                    complete: function() {
+                        $('button').attr('disabled', false);
+                    }
+                });
+            });
+        });
+
         $(document).ready(function() {
             $("#searchNodeDataBtn").click(function() {
                 var r = parseInt($('#rowInput').val());
